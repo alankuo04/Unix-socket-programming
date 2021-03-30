@@ -9,6 +9,8 @@
 #include<iostream>
 #include<fstream>
 #include<sstream>
+#include<vector>
+#include"coded.h"
 #define PORT 50005
 using namespace std;
 
@@ -44,12 +46,15 @@ int main(){
     cout<<"A client \""<<inet_ntoa(cli.sin_addr)<<"\" has connected via port num "<<ntohs(cli.sin_port)<<" using SOCK_STREAM (TCP)"<<endl;
 
     string read_data;
-    int temp_bytes = 0, file_size;
-    bool first_block = true;
-    fstream file;
+    int temp_bytes = 0, file_size, table_size, padding;
+    bool first_block = true, is_code_list=false;
+    fstream file, code_list_file, origin_file;
+    string encoded_file, code_list_string;
+    vector<string> code_list(256,"");
 
     while(1){
         if(first_block){
+            read_data = "";
             //cout<<"first block"<<endl;
             n_bytes = read(newfd, buf, sizeof(buf));
             temp_bytes += n_bytes;
@@ -65,22 +70,30 @@ int main(){
             else{
                 if(temp_bytes==512){
                     stringstream ss((string(buf)));
-                    string file_name, size, table_size, coded_name;
-                    ss>>file_name>>size;
-                    //cout<<file_name<<" "<<file_size<<endl;
-                    file.open("./test/"+file_name, ios::out|ios::binary);
+                    string file_name, size1, size2, size3, coded_file_name, code_list_name;
+                    // compressed file size, origin file size, codelist size, padding
+                    ss>>file_name>>size1>>size2>>size3>>padding;
+                    //cout<<file_name<<" "<<size1<<endl;
+                    coded_file_name = file_name+"-coded";
+                    code_list_name = file_name+"-code.txt";
+                    //cout<<coded_file_name<<" "<<code_list_name<<endl;
+                    file.open("./test/"+coded_file_name, ios::out|ios::binary);
+                    code_list_file.open("./test/"+code_list_name, ios::out|ios::binary);
+                    origin_file.open("./test/"+file_name, ios::out|ios::binary);
                     temp_bytes=0;
                     first_block=false;
-                    file_size=stoi(size);
-                    coded_name = string(file_name).replace(file_name.find_last_of("."), 1, "-coded.");
-                    cout<<"The client sends a file \""+file_name+"\" with size of "+size+" bytes. The Huffman coding data are stored in \""+coded_name+"\""<<endl;
+                    file_size=stoi(size1);
+                    table_size=stoi(size3);
+                    cout<<"The client sends a file \""+file_name+"\" with size of "+size2+" bytes. The Huffman coding data are stored in \""+coded_file_name+"\""<<endl;
                 }
             }
         }
         else{
             //cout<<"now is file block"<<endl;
             n_bytes = read(newfd, buf, sizeof(buf));
-            //cout<<n_bytes<<endl;
+            for(int i=0;i<n_bytes;i++){
+                read_data += buf[i];
+            }
             temp_bytes += n_bytes;
             if(n_bytes < 0){
                 perror("read");
@@ -92,11 +105,25 @@ int main(){
                 break;
             }
             else{
-                file.write(buf, n_bytes);
-                if(temp_bytes==file_size){
-                    temp_bytes=0;
+                if(temp_bytes==(file_size+table_size)){
+                    encoded_file = read_data.substr(0,file_size);
+                    code_list_string = read_data.substr(file_size, table_size);
                     first_block=true;
+                    temp_bytes=0;
+                    file.write(encoded_file.c_str(), encoded_file.size());
                     file.close();
+                    code_list_file.write(code_list_string.c_str(), code_list_string.size());
+                    code_list_file.close();
+
+                    stringstream cs(code_list_string);
+                    string temp;
+                    vector<string> code_vec;
+                    while(getline(cs, temp))
+                        code_vec.push_back(temp);
+                    string decoded_file = huffman_decode(encoded_file, code_vec, padding);
+                    
+                    origin_file.write(decoded_file.c_str(), decoded_file.size());
+                    origin_file.close();
                 }
             }
         }

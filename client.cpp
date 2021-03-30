@@ -8,6 +8,8 @@
 #include<string>
 #include<iostream>
 #include<fstream>
+#include<iomanip>
+#include"coded.h"
 using namespace std;
 
 string huffman(string, int[]);
@@ -68,12 +70,25 @@ int main(){
                             origin_file += c;
                             char_count[(unsigned char)(c)]++;
                         }
-                        //new_file = huffman(origin_file, char_count);
+                        int padding;
+                        string compressed_file;
+                        vector<string> code_list(256, "");
+                        tie(padding, compressed_file, code_list) = huffman_encode(origin_file, char_count);
+                        string code_list_string="";
+                        for(int i=0;i<code_list.size();i++){
+                            code_list_string += code_list[i];
+                            code_list_string += "\n";
+                        }
+                        //cout<<code_list_string;
+                        strcpy(buf, (string(buf)+"\n"+to_string(compressed_file.size())).c_str());
                         strcpy(buf, (string(buf)+"\n"+to_string(origin_file.size())).c_str());
-
+                        strcpy(buf, (string(buf)+"\n"+to_string(code_list_string.size())).c_str());
+                        strcpy(buf, (string(buf)+"\n"+to_string(padding)).c_str());
                         int temp_bytes = 0;
                         bool first_block = true;
+                        cout<<buf<<endl;
                         while(1){
+                            // send the data information first
                             if(first_block){
                                 n_bytes = write(fd, buf, sizeof(buf));
                                 temp_bytes += n_bytes;
@@ -89,21 +104,24 @@ int main(){
                                 }
                             }
                             else{
-                                n_bytes = write(fd, origin_file.c_str(), origin_file.size());
+                                n_bytes = write(fd, compressed_file.c_str(), compressed_file.size());
+                                temp_bytes += n_bytes;
+                                n_bytes = write(fd, code_list_string.c_str(), code_list_string.size());
                                 temp_bytes += n_bytes;
                                 if(n_bytes < 0){
                                     perror("write");
                                     exit(1);
                                 }
                                 else{
-                                    if((long unsigned int)temp_bytes==origin_file.size()){
+                                    if((long unsigned int)temp_bytes==compressed_file.size()+code_list_string.size()){
                                         time_t timer;
                                         struct tm *upload_time;
                                         char time_buffer[20];
                                         time(&timer);
                                         upload_time = localtime(&timer);
                                         strftime (time_buffer,20,"%Y/%m/%d %R",upload_time);
-                                        cout<<"Original file length: "<<origin_file.size()<<" bytes, compressed file length: "<<endl;
+                                        cout<<"Original file length: "<<origin_file.size()<<" bytes, compressed file length: "<<compressed_file.size();
+                                        cout<<" bytes (ratio: "<<(float(compressed_file.size())/float(origin_file.size()))*100<<"%)"<<endl;
                                         cout<<"Time to upload: "<<time_buffer<<endl;
                                         first_block=true;
                                         temp_bytes=0;

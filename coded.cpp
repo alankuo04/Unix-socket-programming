@@ -8,6 +8,7 @@
 #include<unordered_map>
 #include<algorithm>
 #include<fstream>
+#include"coded.h"
 using namespace std;
 
 tuple<int, int, string, string> fixed_length_encode(string origin, int char_count[]){
@@ -128,6 +129,7 @@ string huffman_decode(string encoded, vector<string> code_list, int padding){
     return output;
 }
 
+/*
 int main(){
     string origin="";
     fstream file("123.jpg", ios::in|ios::binary);
@@ -156,3 +158,4 @@ int main(){
     file.close();
     
 }
+*/

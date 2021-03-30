@@ -1,6 +1,12 @@
+TARGET=server
+TARGET2=client
+TARGET3=coded
+VERSION=-std=c++11
+
 all:
-	g++ -Wall -std=c++11 server.cpp -o server
-	g++ -Wall -std=c++11 client.cpp -o client
-	./server
+	g++ $(VERSION) -c $(TARGET3).cpp -o $(TARGET3).o
+	g++ -Wall $(VERSION) $(TARGET).cpp -o $(TARGET) $(TARGET3).o
+	g++ -Wall $(VERSION) $(TARGET2).cpp -o $(TARGET2) $(TARGET3).o
+	./$(TARGET)
 clean:
-	rm server client
+	rm $(TARGET) $(TARGET2)
