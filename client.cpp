@@ -12,8 +12,6 @@
 #include"coded.h"
 using namespace std;
 
-string huffman(string, int[]);
-
 int main(){
     struct sockaddr_in srv;
 
@@ -70,23 +68,38 @@ int main(){
                             origin_file += c;
                             char_count[(unsigned char)(c)]++;
                         }
-                        int padding;
-                        string compressed_file;
+                        int length=0, padding;
+                        string code_mode,compressed_file;
                         vector<string> code_list(256, "");
-                        tie(padding, compressed_file, code_list) = huffman_encode(origin_file, char_count);
                         string code_list_string="";
-                        for(int i=0;i<code_list.size();i++){
-                            code_list_string += code_list[i];
-                            code_list_string += "\n";
+
+                        cout<<"Sending the file with fixed length/huffman coding(fixed/huffman):";
+                        
+                        cin>>code_mode;
+                        if(code_mode=="huffman"){
+                            tie(padding, compressed_file, code_list) = huffman_encode(origin_file, char_count);
+                            for(int i=0;i<code_list.size();i++){
+                                code_list_string += code_list[i];
+                                code_list_string += "\n";
+                            }
                         }
+                        else if(code_mode=="fixed"){
+                            tie(length, padding, compressed_file, code_list_string) = fixed_length_encode(origin_file, char_count);
+                        }
+                        else{
+                            cout<<"Unknown coding."<<endl;
+                            continue;
+                        }
+
                         //cout<<code_list_string;
                         strcpy(buf, (string(buf)+"\n"+to_string(compressed_file.size())).c_str());
                         strcpy(buf, (string(buf)+"\n"+to_string(origin_file.size())).c_str());
                         strcpy(buf, (string(buf)+"\n"+to_string(code_list_string.size())).c_str());
+                        strcpy(buf, (string(buf)+"\n"+to_string(length)).c_str());
                         strcpy(buf, (string(buf)+"\n"+to_string(padding)).c_str());
                         int temp_bytes = 0;
                         bool first_block = true;
-                        cout<<buf<<endl;
+                        //cout<<buf<<endl;
                         while(1){
                             // send the data information first
                             if(first_block){
@@ -146,9 +159,4 @@ int main(){
             cout<<"Unknown command."<<endl;
         }
     }
-}
-
-string huffman(string origin_file, int char_count[]){
-    //cout<<origin_file.size()<<endl;
-    return "1";
 }
