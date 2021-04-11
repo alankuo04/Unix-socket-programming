@@ -82,9 +82,9 @@ int main(){
                     coded_file_name = file_name+"-coded";
                     code_list_name = file_name+"-code.txt";
                     //cout<<coded_file_name<<" "<<code_list_name<<endl;
-                    file.open("./test/"+coded_file_name, ios::out|ios::binary);
-                    code_list_file.open("./test/"+code_list_name, ios::out|ios::binary);
-                    origin_file.open("./test/"+file_name, ios::out|ios::binary);
+                    file.open("./"+coded_file_name, ios::out|ios::binary);
+                    code_list_file.open("./"+code_list_name, ios::out|ios::binary);
+                    origin_file.open("./"+file_name, ios::out|ios::binary);
                     temp_bytes=0;
                     first_block=false;
                     file_size=stoi(size1);

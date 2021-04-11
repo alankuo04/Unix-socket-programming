@@ -25,6 +25,12 @@ int main(){
     
     while(1){
         // user interface with color that look more comfortable
+        cout<<endl;
+        cout<<"==========MODE========="<<endl;
+        cout<<"1) link (ip) (port)"<<endl;
+        cout<<"2) send (filename)"<<endl;
+        cout<<"3) leave"<<endl;
+        cout<<"========================"<<endl;
         cout<<"\e[0;32m[Client]$ \e[0m";
 
         cin>>mode;
