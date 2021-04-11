@@ -13,6 +13,7 @@
 using namespace std;
 
 int main(){
+    // set up the socket for the client
     struct sockaddr_in srv;
 
     int fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -64,6 +65,7 @@ int main(){
                         string origin_file = "";
                         string new_file;
                         int char_count[256] = {0};
+                        // read the whole file and store it in a string
                         while (file.get(c)){
                             origin_file += c;
                             char_count[(unsigned char)(c)]++;
@@ -73,9 +75,11 @@ int main(){
                         vector<string> code_list(256, "");
                         string code_list_string="";
 
+                        // choosing the coding method
                         cout<<"Sending the file with fixed length/huffman coding(fixed/huffman):";
                         
                         cin>>code_mode;
+                        // using huffman coding for compressing file
                         if(code_mode=="huffman"){
                             tie(padding, compressed_file, code_list) = huffman_encode(origin_file, char_count);
                             for(int i=0;i<code_list.size();i++){
@@ -83,6 +87,7 @@ int main(){
                                 code_list_string += "\n";
                             }
                         }
+                        // using fixed length coding for compressing file
                         else if(code_mode=="fixed"){
                             tie(length, padding, compressed_file, code_list_string) = fixed_length_encode(origin_file, char_count);
                         }
@@ -90,6 +95,8 @@ int main(){
                             cout<<"Unknown coding."<<endl;
                             continue;
                         }
+
+                        // sending the first block to server for storing some information for the upcoming data
 
                         //cout<<code_list_string;
                         strcpy(buf, (string(buf)+"\n"+to_string(compressed_file.size())).c_str());
@@ -116,6 +123,7 @@ int main(){
                                     }
                                 }
                             }
+                            // send the compressed file
                             else{
                                 n_bytes = write(fd, compressed_file.c_str(), compressed_file.size());
                                 temp_bytes += n_bytes;
@@ -126,6 +134,7 @@ int main(){
                                     exit(1);
                                 }
                                 else{
+                                    // check the file send finish or not
                                     if((long unsigned int)temp_bytes==compressed_file.size()+code_list_string.size()){
                                         time_t timer;
                                         struct tm *upload_time;
@@ -147,6 +156,7 @@ int main(){
                         
                     }
                 }
+                // type "leave" and end the client program
                 else if(mode=="leave"){
                     cout<<"Bye bye."<<endl;
                     shutdown(fd, SHUT_RDWR);

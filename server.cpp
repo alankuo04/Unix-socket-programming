@@ -15,6 +15,7 @@
 using namespace std;
 
 int main(){
+    // set up the socket for server
     struct sockaddr_in srv;
     struct sockaddr_in cli;
     
@@ -29,7 +30,9 @@ int main(){
     srv.sin_port = htons(PORT);
     srv.sin_addr.s_addr = htonl(INADDR_ANY);
     
+    // server side user interface
     cout<<"\e[0;32m[Server]$ \e[0mWaiting for client connecting."<<endl;
+    // waiting for the client connection
     if(bind(fd, (struct sockaddr*) &srv, sizeof(srv)) < 0){
         perror("bind");
         exit(1);
@@ -53,6 +56,7 @@ int main(){
     vector<string> code_list(256,"");
 
     while(1){
+        // get the first block for upcoming information from client
         if(first_block){
             read_data = "";
             //cout<<"first block"<<endl;
@@ -68,6 +72,7 @@ int main(){
                 break;
             }
             else{
+                // the first block size is 512 bytes
                 if(temp_bytes==512){
                     stringstream ss((string(buf)));
                     string file_name, size1, size2, size3, coded_file_name, code_list_name;
@@ -84,6 +89,7 @@ int main(){
                     first_block=false;
                     file_size=stoi(size1);
                     table_size=stoi(size3);
+                    // check the first block to know the file is compressed by huffman or fixed length
                     if(length==0)
                         cout<<"The client sends a file \""+file_name+"\" with size of "+size2+" bytes. The Huffman coding data are stored in \""+coded_file_name+"\""<<endl;
                     else
@@ -92,6 +98,7 @@ int main(){
             }
         }
         else{
+            // now getting the compressed file data
             //cout<<"now is file block"<<endl;
             n_bytes = read(newfd, buf, sizeof(buf));
             for(int i=0;i<n_bytes;i++){
@@ -102,12 +109,14 @@ int main(){
                 perror("read");
                 exit(1);
             }
+            // client send a terminal signal and then shut down the server
             else if(n_bytes == 0){
                 cout<<"The client \""<<inet_ntoa(cli.sin_addr)<<"\" with port "<<ntohs(cli.sin_port)<<" has terminated the connection."<<endl;
                 shutdown(fd, SHUT_RDWR);
                 break;
             }
             else{
+                // server get the compressed file and the coding table
                 if(temp_bytes==(file_size+table_size)){
                     encoded_file = read_data.substr(0,file_size);
                     code_list_string = read_data.substr(file_size, table_size);
@@ -118,11 +127,14 @@ int main(){
                     code_list_file.write(code_list_string.c_str(), code_list_string.size());
                     code_list_file.close();
 
+                    // decode the compressed file
                     string decoded_file;
                     if(length!=0){
+                        // decode the fixed length encoded file 
                         decoded_file = fixed_length_decode(encoded_file, code_list_string, length, padding);
                     }
                     else{
+                        // set up the coding table and decode the huffman coded file
                         stringstream cs(code_list_string);
                         string temp;
                         vector<string> code_vec;

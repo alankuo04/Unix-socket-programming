@@ -12,6 +12,7 @@
 using namespace std;
 
 tuple<int, int, string, string> fixed_length_encode(string origin, int char_count[]){
+    // count the total number of different characters appear
     int count=0;
     int new_code[256]={0};
     string code_list="";
@@ -22,18 +23,22 @@ tuple<int, int, string, string> fixed_length_encode(string origin, int char_coun
             code_list+=char(i);
         }
     }
+    // more than 128 kind of characters, then just return the origin file 
     if(count>128)
         return {8, 0, origin, code_list};
     else{
+        // changing each character into the new coded character
         string new_byte_file="";
         //cout<<origin.size()<<endl;
         for(int i=0;i<origin.size();i++){
             if(new_code[(unsigned char)(origin[i])]!=0){
                 size_t t=ceil(log(count)/log(2));
+                // first storing in the bit format
                 string temp = bitset<8>(new_code[(unsigned char)(origin[i])]-1).to_string();
                 new_byte_file+=temp.substr(8-t);
             }
         }
+        // add some 0 for the total bit can be changed into bytes
         int complement=(8-new_byte_file.size()%8)%8;
         for(int i=0;i<complement;i++)
             new_byte_file+="0";
@@ -47,6 +52,7 @@ tuple<int, int, string, string> fixed_length_encode(string origin, int char_coun
 }
 
 string fixed_length_decode(string encoded, string code_list, int length, int padding){
+    // decode the compressed file
     string bytes="";
     for(int i=0;i<encoded.size();i++){
         bytes += bitset<8>(encoded[i]).to_string();
@@ -62,6 +68,7 @@ string fixed_length_decode(string encoded, string code_list, int length, int pad
 bool compare(pair<int,string> a, pair<int,string> b){ return a.first>=b.first;}
 
 tuple<int, string, vector<string>> huffman_encode(string origin, int char_count[]){
+    // using priority queue for storing a huffman tree
     priority_queue<pair<int, string>, vector<pair<int, string>>, decltype(&compare) > huffman_tree(&compare);
     for(int i=0;i<256;i++){
         if(char_count[i]!=0){
@@ -73,6 +80,8 @@ tuple<int, string, vector<string>> huffman_encode(string origin, int char_count[
     vector<string> code_list(256, "");
     int size = huffman_tree.size();
     //cout<<size<<endl;
+
+    // construct a huffman tree
     for(int i=0;i<size, huffman_tree.size()>1;i++){
         pair<int, string> node_left, node_right;
         node_left = huffman_tree.top();
@@ -90,11 +99,14 @@ tuple<int, string, vector<string>> huffman_encode(string origin, int char_count[
         }
     }
     //cout<<huffman_tree[0].first<<" "<<huffman_tree[0].second<<endl;
+
+    // changing each character into the new coded character
     string new_byte_file="", new_file="";
     for(int i=0;i<origin.size();i++){
         new_byte_file += code_list[(unsigned char)(origin[i])];
     }
     int complement=(8-new_byte_file.size()%8)%8;
+    // add some 0 for the total bit can be changed into bytes
     for(int i=0;i<complement;i++)
         new_byte_file+="0";
     for(int i=0;i<new_byte_file.size();i+=8){
@@ -105,12 +117,15 @@ tuple<int, string, vector<string>> huffman_encode(string origin, int char_count[
 }
 
 string huffman_decode(string encoded, vector<string> code_list, int padding){
+    // decompressed the compressed file
     string bytes="";
     for(int i=0;i<encoded.size();i++){
         bytes += bitset<8>(encoded[i]).to_string();
     }
     bytes = bytes.substr(0, bytes.size()-padding);
     //cout<<bytes<<endl;
+
+    // using an unordered map to speed up the decompressing time
     unordered_map<string, int> code_map;
     for(int i=0;i<256;i++){
         code_map[code_list[i]]=char(i);
@@ -119,6 +134,7 @@ string huffman_decode(string encoded, vector<string> code_list, int padding){
     for(int i=1;i<=bytes.size();i++){
         if(code_map.find(bytes.substr(0,i)) != code_map.end()){
             output+=code_map[bytes.substr(0,i)];
+            // using erase is more quickly than using substr to generate a new object
             bytes.erase(bytes.begin(), bytes.begin()+i);
             //bytes = bytes.substr(i,bytes.size());
             i=0;
@@ -129,6 +145,8 @@ string huffman_decode(string encoded, vector<string> code_list, int padding){
     return output;
 }
 
+
+// testing the two coding method is correct or not
 /*
 int main(){
     string origin="";
