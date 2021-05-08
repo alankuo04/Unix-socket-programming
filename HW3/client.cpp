@@ -31,6 +31,7 @@ int main(int argc, char* argv[]){
         cout<<"1) login (ip) (port) (username)"<<endl;
         cout<<"2) chat (username) (message)"<<endl;
         cout<<"3) logout"<<endl;
+        cout<<"4) other (refresh)."<<endl;
         cout<<"========================"<<endl;
         cout<<"\e[0;32m[Client]$ \e[0m";
 
@@ -85,14 +86,6 @@ int main(int argc, char* argv[]){
                        }
                     }
                 }
-                else if(mode=="refresh"){
-                    strcpy(buf, "refresh");
-                    n_bytes = write(fd, buf, sizeof(buf));
-                    if(n_bytes < 0){
-                        perror("write");
-                        exit(1);
-                    }
-                }
                 else if(mode=="logout"){
                     cout<<"Bye bye."<<endl;
                     strcpy(buf, ("logout "+username).c_str());
@@ -105,18 +98,32 @@ int main(int argc, char* argv[]){
                     break;
                 }
             }
-            int cc = read(fd, buf, sizeof(buf));
-            if(cc < 0)
-                perror("read");
-            if(string(buf)=="bad login"){
-                cout<<"Log into the online chat failed."<<endl;
-                shutdown(fd, SHUT_RDWR);
-                break;
-            }
         }
         else{
-            cout<<"Unknown command."<<endl;
+            if(isLink){
+                strcpy(buf, "trash");
+                n_bytes = write(fd, buf, sizeof(buf));
+                if(n_bytes < 0){
+                    perror("write");
+                    exit(1);
+                }
+            }
         }
-        printf("%s\n", buf); 
+        if(isLink){
+            int cc;
+            while(cc = read(fd, buf, sizeof(buf))){
+                if(cc < 0)
+                    perror("read");
+                if(string(buf)=="end"){
+                    break;
+                }
+                if(string(buf)=="bad login"){
+                    cout<<"Log into the online chat failed."<<endl;
+                    shutdown(fd, SHUT_RDWR);
+                    exit(1);
+                }
+                printf("%s\n", buf); 
+            }
+        }
     }
 }

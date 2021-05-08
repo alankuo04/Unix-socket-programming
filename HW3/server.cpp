@@ -48,6 +48,7 @@ int SLAVE(int fd){
             exit(1);
         }
         // Who is online now
+        
         if ((dir = opendir ("./user/online/")) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
@@ -138,15 +139,15 @@ int SLAVE(int fd){
                     if(write(fd, buf, cc) < 0){
                         perror("write");
                     }
+                    remove(("./user/"+username+"/"+string(ent->d_name)).c_str());
                 }
             }
-            closedir (dir);
-        } 
+        }
         else{
             perror ("dir");
             exit(1);
         }
-        strcpy(buf, "write");
+        strcpy(buf, "end");
         if(write(fd, buf, cc) < 0){
             perror("write");
         }
