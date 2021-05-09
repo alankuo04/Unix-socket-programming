@@ -14,6 +14,7 @@
 #include<iostream>
 #include<string>
 #include<fstream>
+#include<vector>
 
 #define QLEN 32
 #define BUFSIZE 4096
@@ -26,14 +27,14 @@ int SLAVE(int fd){
     int cc;
     string username;
     string userList[QLEN];
-    bool onlineList[QLEN];
     DIR *dir;
     struct dirent *ent;
-    int i = 0;
     while (cc = read(fd, buf, sizeof(buf))){
+        int i = 0;
         if(cc < 0)
             perror("read");
         
+        bool onlineList[QLEN] = {};
         // Who has been logged in before
         if ((dir = opendir ("./user/")) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
@@ -47,24 +48,7 @@ int SLAVE(int fd){
             perror ("dir");
             exit(1);
         }
-        // Who is online now
         
-        if ((dir = opendir ("./user/online/")) != NULL) {
-            while ((ent = readdir(dir)) != NULL) {
-                if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
-                    for(int j=0;j<i;j++){
-                        if(string(ent->d_name)==userList[j]){
-                            onlineList[j]=true;
-                        }
-                    }
-                }
-            }
-            closedir (dir);
-        } 
-        else{
-            perror ("dir");
-            exit(1);
-        }
         
         // login mode
         if(string(buf).substr(0, string(buf).find_first_of(" ")) == "login"){
@@ -122,30 +106,76 @@ int SLAVE(int fd){
         
         printf("%s: %s\n", username.c_str(), buf);
 
+        // Who is online now
+        bool tempOnlineList[QLEN]={};
+        if ((dir = opendir ("./user/online/")) != NULL) {
+            while ((ent = readdir(dir)) != NULL) {
+                if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
+                    for(int j=0;j<QLEN;j++){
+                        if(string(ent->d_name)==userList[j]){
+                            tempOnlineList[j]=true;
+                        }
+                    }
+                }
+            }
+            closedir(dir);
+        } 
+        else{
+            perror ("dir");
+            exit(1);
+        }
+        // show the online/offline message
+        for(int t=0;t<i;t++){
+            cout<<userList[t]<<":"<<tempOnlineList[t]<<" "<<onlineList[t]<<endl;
+            if(tempOnlineList[t]!=onlineList[t]){
+                if(tempOnlineList[t]){
+                    //cout<<userList[t]<<" is on-line."<<endl;
+                    strcpy(buf, ("<User "+userList[t]+" is on-line, IP address: "+"123"+".> ").c_str());
+                    if(write(fd, buf, cc) < 0){
+                        perror("write");
+                    }
+                }
+                else{
+                    //cout<<userList[t]<<" is off-line."<<endl;
+                    strcpy(buf, ("<User "+userList[t]+" is off-line.> ").c_str());
+                    if(write(fd, buf, cc) < 0){
+                        perror("write");
+                    }
+                }
+            }
+        }
+        for(int t=0;t<i;t++)
+            onlineList[t] = tempOnlineList[t];
+
         // get message
+        vector<string> filenameList;
+
         if ((dir = opendir (("./user/"+username+"/").c_str())) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
                     cout<<ent->d_name<<endl;
-                    string sender = string(ent->d_name).substr(0, string(ent->d_name).find_first_of("_"));
-                    string sendtime = string(ent->d_name).substr(string(ent->d_name).find_first_of("_")+1, string(ent->d_name).find_first_of(".")-2);
-                    for(int c=0;c<sendtime.size();c++)
-                        if(sendtime[c]=='_')
-                            sendtime[c]=' ';
-                    fstream file("./user/"+username+"/"+string(ent->d_name), ios::in);
-                    string message;
-                    file>>message;
-                    strcpy(buf, ("<User "+sender+" has sent you a message "+message+" at "+sendtime+".> ").c_str());
-                    if(write(fd, buf, cc) < 0){
-                        perror("write");
-                    }
-                    remove(("./user/"+username+"/"+string(ent->d_name)).c_str());
+                    filenameList.push_back(string(ent->d_name));
                 }
             }
         }
         else{
             perror ("dir");
             exit(1);
+        }
+        for(int f=0;f<filenameList.size();f++){
+            string sender = filenameList[f].substr(0, filenameList[f].find_first_of("_"));
+            string sendtime = filenameList[f].substr(filenameList[f].find_first_of("_")+1, filenameList[f].find_first_of(".")-2);
+            for(int c=0;c<sendtime.size();c++)
+                if(sendtime[c]=='_')
+                    sendtime[c]=' ';
+            fstream file("./user/"+username+"/"+filenameList[f], ios::in);
+            string message;
+            file>>message;
+            strcpy(buf, ("<User "+sender+" has sent you a message "+message+" at "+sendtime+".> ").c_str());
+            if(write(fd, buf, cc) < 0){
+                perror("write");
+            }
+            remove(("./user/"+username+"/"+filenameList[f]).c_str());
         }
         strcpy(buf, "end");
         if(write(fd, buf, cc) < 0){
