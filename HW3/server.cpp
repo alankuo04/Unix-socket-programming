@@ -7,6 +7,7 @@
 #include<sys/errno.h>
 #include<sys/stat.h>
 #include<netinet/in.h>
+#include<arpa/inet.h>
 #include<unistd.h>
 #include<string.h>
 #include<dirent.h>
@@ -22,11 +23,13 @@
 
 using namespace std;
 
-int SLAVE(int fd){
+int SLAVE(int fd, char* ip){
     char buf[BUFSIZE];
     int cc;
     string username;
-    string userList[QLEN];
+    //string userList[QLEN];
+    vector<string> userList;
+    bool onlineList[QLEN] = {};
     DIR *dir;
     struct dirent *ent;
     while (cc = read(fd, buf, sizeof(buf))){
@@ -34,12 +37,12 @@ int SLAVE(int fd){
         if(cc < 0)
             perror("read");
         
-        bool onlineList[QLEN] = {};
         // Who has been logged in before
+        userList.clear();
         if ((dir = opendir ("./user/")) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="online" && string(ent->d_name)!="." && string(ent->d_name)!=".."){
-                    userList[i++] = string(ent->d_name);
+                    userList.push_back(string(ent->d_name));
                 }
             }
             closedir (dir);
@@ -48,13 +51,13 @@ int SLAVE(int fd){
             perror ("dir");
             exit(1);
         }
-        
-        
         // login mode
         if(string(buf).substr(0, string(buf).find_first_of(" ")) == "login"){
             bool alreadyLoginUser = false;
             username = string(buf).substr(string(buf).find_first_of(" ")+1, string(buf).size());
-            for(int j=0;j<i;j++){
+            
+            cout<<"login: "<<username<<endl;
+            for(int j=0;j<userList.size();j++){
                 if(userList[j]==username && onlineList[j]){
                     alreadyLoginUser = true;
                 }
@@ -70,8 +73,21 @@ int SLAVE(int fd){
             else{
                 mkdir(("./user/"+username).c_str(), 0777);
                 mkdir(("./user/online/"+username).c_str(), 0777);
-                userList[i]=username;
-                onlineList[i]=true;
+                userList.push_back(username);
+                for(int j=0;j<userList.size();j++){
+                    if(userList[j]!=username){
+                        fstream file("./user/"+userList[j]+"/online_"+username, ios::out);
+                        if(!file){
+                            perror("file");
+                            exit(1);
+                        }
+                        file<<username;
+                        file.close();
+                    }
+                    else{
+                        onlineList[j]=true;
+                    }
+                }
             }
         }
         // chat command
@@ -80,73 +96,55 @@ int SLAVE(int fd){
             string receiver = temp.substr(0, temp.find_first_of(" "));
             string message = temp.substr(temp.find_first_of(" ")+1, temp.size());
             
-            time_t timer;
-            struct tm *upload_time;
-            char time_buffer[20];
-            time(&timer);
-            upload_time = localtime(&timer);
-            strftime (time_buffer,20,"%Y_%m_%d_%R:%S",upload_time);
-            fstream file("./user/"+receiver+"/"+username+"_"+time_buffer+".txt", ios::out);
-            if(!file){
-                perror("file");
-                exit(1);
+            bool availableUser=false;
+            for(int r=0;r<userList.size();r++){
+                if(receiver==userList[r])
+                    availableUser=true;
             }
-            file<<message;
-            file.close();
+            if(availableUser){
+                time_t timer;
+                struct tm *upload_time;
+                char time_buffer[20];
+                time(&timer);
+                upload_time = localtime(&timer);
+                strftime (time_buffer,20,"%Y_%m_%d_%R:%S",upload_time);
+                fstream file("./user/"+receiver+"/"+username+"_"+time_buffer+".txt", ios::out);
+                if(!file){
+                    perror("file");
+                    exit(1);
+                }
+                file<<message;
+                file.close();
+            }
+            else{
+                strcpy(buf, ("<User "+receiver+" does not exist.>").c_str());
+                if(write(fd, buf, cc) < 0){
+                    perror("write");
+                }
+            }
+            
         }
         // logout command
         else if(string(buf).substr(0, string(buf).find_first_of(" ")) == "logout"){
-            for(int j=0;j<i;j++){
+            for(int j=0;j<userList.size();j++){
                 if(userList[j]==username){
                     onlineList[j]=false;
                     rmdir(("./user/online/"+username).c_str());
+                }
+                else{
+                    fstream file("./user/"+userList[j]+"/offline_"+username, ios::out);
+                    if(!file){
+                        perror("file");
+                        exit(1);
+                    }
+                    file<<username;
+                    file.close();
                 }
             }
         }
         
         printf("%s: %s\n", username.c_str(), buf);
-
-        // Who is online now
-        bool tempOnlineList[QLEN]={};
-        if ((dir = opendir ("./user/online/")) != NULL) {
-            while ((ent = readdir(dir)) != NULL) {
-                if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
-                    for(int j=0;j<QLEN;j++){
-                        if(string(ent->d_name)==userList[j]){
-                            tempOnlineList[j]=true;
-                        }
-                    }
-                }
-            }
-            closedir(dir);
-        } 
-        else{
-            perror ("dir");
-            exit(1);
-        }
-        // show the online/offline message
-        for(int t=0;t<i;t++){
-            cout<<userList[t]<<":"<<tempOnlineList[t]<<" "<<onlineList[t]<<endl;
-            if(tempOnlineList[t]!=onlineList[t]){
-                if(tempOnlineList[t]){
-                    //cout<<userList[t]<<" is on-line."<<endl;
-                    strcpy(buf, ("<User "+userList[t]+" is on-line, IP address: "+"123"+".> ").c_str());
-                    if(write(fd, buf, cc) < 0){
-                        perror("write");
-                    }
-                }
-                else{
-                    //cout<<userList[t]<<" is off-line."<<endl;
-                    strcpy(buf, ("<User "+userList[t]+" is off-line.> ").c_str());
-                    if(write(fd, buf, cc) < 0){
-                        perror("write");
-                    }
-                }
-            }
-        }
-        for(int t=0;t<i;t++)
-            onlineList[t] = tempOnlineList[t];
-
+        
         // get message
         vector<string> filenameList;
 
@@ -163,20 +161,32 @@ int SLAVE(int fd){
             exit(1);
         }
         for(int f=0;f<filenameList.size();f++){
-            string sender = filenameList[f].substr(0, filenameList[f].find_first_of("_"));
-            string sendtime = filenameList[f].substr(filenameList[f].find_first_of("_")+1, filenameList[f].find_first_of(".")-2);
-            for(int c=0;c<sendtime.size();c++)
-                if(sendtime[c]=='_')
-                    sendtime[c]=' ';
             fstream file("./user/"+username+"/"+filenameList[f], ios::in);
             string message;
             file>>message;
-            strcpy(buf, ("<User "+sender+" has sent you a message "+message+" at "+sendtime+".> ").c_str());
+            
+            if(filenameList[f].substr(0, filenameList[f].find_first_of("_"))=="offline"){
+                strcpy(buf, ("<User "+message+" is off-line, IP address: "+ip+".>").c_str());
+            }
+            else if(filenameList[f].substr(0, filenameList[f].find_first_of("_"))=="online"){
+                strcpy(buf, ("<User "+message+" is on-line, IP address: "+ip+".>").c_str());
+            }
+            else{
+                string sender = filenameList[f].substr(0, filenameList[f].find_first_of("_"));
+                string sendtime = filenameList[f].substr(filenameList[f].find_first_of("_")+1, filenameList[f].find_first_of(".")-2);
+                for(int c=0;c<sendtime.size();c++)
+                    if(sendtime[c]=='_')
+                        sendtime[c]=' ';
+                strcpy(buf, ("<User "+sender+" has sent you a message "+message+" at "+sendtime+".> ").c_str());
+                
+            }
+
             if(write(fd, buf, cc) < 0){
                 perror("write");
             }
             remove(("./user/"+username+"/"+filenameList[f]).c_str());
         }
+        // End of sending
         strcpy(buf, "end");
         if(write(fd, buf, cc) < 0){
             perror("write");
@@ -227,7 +237,7 @@ int main(){
             case 0:
                 close(msock);
                 //perror("read");
-                exit(SLAVE(ssock));
+                exit(SLAVE(ssock, inet_ntoa(cli.sin_addr)));
             
             default:
                 close(ssock);
