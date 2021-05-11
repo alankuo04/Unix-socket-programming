@@ -27,38 +27,52 @@ int SLAVE(int fd, char* ip){
     char buf[BUFSIZE];
     int cc;
     string username;
-    //string userList[QLEN];
-    vector<string> userList;
-    bool onlineList[QLEN] = {};
+    vector<string> userList, onlineList;
     DIR *dir;
     struct dirent *ent;
     while (cc = read(fd, buf, sizeof(buf))){
         int i = 0;
         if(cc < 0)
             perror("read");
-        
+        /*for(int j=0;j<userList.size();j++){
+            cout<<userList[j]<<"_"<<onlineList[j]<<endl;
+        }*/
         // Who has been logged in before
         userList.clear();
+        onlineList.clear();
         if ((dir = opendir ("./user/")) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="online" && string(ent->d_name)!="." && string(ent->d_name)!=".."){
                     userList.push_back(string(ent->d_name));
                 }
             }
-            closedir (dir);
+            closedir(dir);
         } 
         else{
             perror ("dir");
             exit(1);
         }
+        if ((dir = opendir ("./user/online/")) != NULL) {
+            while ((ent = readdir(dir)) != NULL) {
+                if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
+                    onlineList.push_back(string(ent->d_name));
+                }
+            }
+            closedir(dir);
+        } 
+        else{
+            perror ("dir");
+            exit(1);
+        }
+
         // login mode
         if(string(buf).substr(0, string(buf).find_first_of(" ")) == "login"){
             bool alreadyLoginUser = false;
             username = string(buf).substr(string(buf).find_first_of(" ")+1, string(buf).size());
             
-            cout<<"login: "<<username<<endl;
-            for(int j=0;j<userList.size();j++){
-                if(userList[j]==username && onlineList[j]){
+            //cout<<"login: "<<username<<endl;
+            for(int j=0;j<onlineList.size();j++){
+                if(onlineList[j]==username){
                     alreadyLoginUser = true;
                 }
             }
@@ -75,6 +89,7 @@ int SLAVE(int fd, char* ip){
                 mkdir(("./user/online/"+username).c_str(), 0777);
                 userList.push_back(username);
                 for(int j=0;j<userList.size();j++){
+                    //cout<<userList[j]<<"_"<<onlineList[j]<<endl;
                     if(userList[j]!=username){
                         fstream file("./user/"+userList[j]+"/online_"+username, ios::out);
                         if(!file){
@@ -84,10 +99,8 @@ int SLAVE(int fd, char* ip){
                         file<<username;
                         file.close();
                     }
-                    else{
-                        onlineList[j]=true;
-                    }
                 }
+                
             }
         }
         // chat command
@@ -128,8 +141,13 @@ int SLAVE(int fd, char* ip){
         else if(string(buf).substr(0, string(buf).find_first_of(" ")) == "logout"){
             for(int j=0;j<userList.size();j++){
                 if(userList[j]==username){
-                    onlineList[j]=false;
-                    rmdir(("./user/online/"+username).c_str());
+                    for(int k=0;k<onlineList.size();k++){
+                        if(onlineList[k]==username){
+                            onlineList.erase(onlineList.begin()+k);
+                            rmdir(("./user/online/"+username).c_str());
+                            break;
+                        }
+                    }
                 }
                 else{
                     fstream file("./user/"+userList[j]+"/offline_"+username, ios::out);
@@ -163,7 +181,7 @@ int SLAVE(int fd, char* ip){
         for(int f=0;f<filenameList.size();f++){
             fstream file("./user/"+username+"/"+filenameList[f], ios::in);
             string message;
-            file>>message;
+            getline(file, message);
             
             if(filenameList[f].substr(0, filenameList[f].find_first_of("_"))=="offline"){
                 strcpy(buf, ("<User "+message+" is off-line, IP address: "+ip+".>").c_str());

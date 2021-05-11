@@ -54,7 +54,7 @@ int main(int argc, char* argv[]){
                         perror("write");
                         exit(1);
                     }
-                    cout<<"The server with IP address \""+ip+"\" has accepted your connection."<<endl;
+                    //cout<<"The server with IP address \""+ip+"\" has accepted your connection."<<endl;
                     isLink = true;
                 }
                 else{
@@ -66,17 +66,18 @@ int main(int argc, char* argv[]){
                     cout<<"The connect is already linked."<<endl;
                 }
                 else if(mode=="chat"){
-                    string user[QLEN], message;
+                    cin.get();
+                    string user[QLEN], message="";
                     string temp;
-                    int i;
-                    for(i=0;i<QLEN;i++){
-                        cin>>temp;
-                        if(temp[0] == '\"'){
-                            message = temp;
-                            break;
-                        }
-                        user[i]=temp;
+                    bool end = false, startMessage = false;
+                    int i=0;
+                    getline(cin, message);
+                    while(message[0]!='\"'){
+                        cout<<message<<endl;
+                        user[i++] = message.substr(0, message.find_first_of(" "));
+                        message = message.substr(message.find_first_of(" ")+1, message.size());
                     }
+
                     for(int j=0;j<i;j++){
                        strcpy(buf, ("chat "+user[j]+" "+message).c_str());
                        n_bytes = write(fd, buf, sizeof(buf));
