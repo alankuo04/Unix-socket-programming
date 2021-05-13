@@ -7,3 +7,4 @@ all:
 	g++ $(VERSION) $(TARGET2).cpp -o $(TARGET2)
 clean:
 	rm $(TARGET) $(TARGET2)
+	rm -r ./user

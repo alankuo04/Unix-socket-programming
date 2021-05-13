@@ -23,6 +23,7 @@
 
 using namespace std;
 
+// Slave process for handling client connection and chatting
 int SLAVE(int fd, char* ip){
     char buf[BUFSIZE];
     int cc;
@@ -30,13 +31,12 @@ int SLAVE(int fd, char* ip){
     vector<string> userList, onlineList;
     DIR *dir;
     struct dirent *ent;
+    // always getting the message from client until getting end signal
     while (cc = read(fd, buf, sizeof(buf))){
         int i = 0;
         if(cc < 0)
             perror("read");
-        /*for(int j=0;j<userList.size();j++){
-            cout<<userList[j]<<"_"<<onlineList[j]<<endl;
-        }*/
+        
         // Who has been logged in before
         userList.clear();
         onlineList.clear();
@@ -52,6 +52,7 @@ int SLAVE(int fd, char* ip){
             perror ("dir");
             exit(1);
         }
+        // Who is online now
         if ((dir = opendir ("./user/online/")) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
@@ -69,13 +70,15 @@ int SLAVE(int fd, char* ip){
         if(string(buf).substr(0, string(buf).find_first_of(" ")) == "login"){
             bool alreadyLoginUser = false;
             username = string(buf).substr(string(buf).find_first_of(" ")+1, string(buf).size());
-            
             //cout<<"login: "<<username<<endl;
+            
+            // check the username has already logged in or not
             for(int j=0;j<onlineList.size();j++){
                 if(onlineList[j]==username){
                     alreadyLoginUser = true;
                 }
             }
+            // send message back to client and shutdown the connection
             if(alreadyLoginUser){
                 cout<<"already log in user."<<endl;
                 strcpy(buf, "bad login");
@@ -85,9 +88,11 @@ int SLAVE(int fd, char* ip){
                 exit(1);
             }
             else{
+                // make directory for setting new user
                 mkdir(("./user/"+username).c_str(), 0777);
                 mkdir(("./user/online/"+username).c_str(), 0777);
                 userList.push_back(username);
+                // broadcast for on-line
                 for(int j=0;j<userList.size();j++){
                     //cout<<userList[j]<<"_"<<onlineList[j]<<endl;
                     if(userList[j]!=username){
@@ -110,11 +115,24 @@ int SLAVE(int fd, char* ip){
             string message = temp.substr(temp.find_first_of(" ")+1, temp.size());
             
             bool availableUser=false;
+            // checking the user client want to send is available or not
             for(int r=0;r<userList.size();r++){
                 if(receiver==userList[r])
                     availableUser=true;
             }
             if(availableUser){
+                // sending message to the chosen user
+                bool onlineUser = false;
+                for(int r=0;r<onlineList.size();r++){
+                    if(onlineList[r]==receiver)
+                        onlineUser = true;
+                }
+                if(!onlineUser){
+                    strcpy(buf, ("<User "+receiver+" is off-line. The message will be passed when he comes back.>").c_str());
+                    if(write(fd, buf, cc) < 0){
+                        perror("write");
+                    }
+                }
                 time_t timer;
                 struct tm *upload_time;
                 char time_buffer[20];
@@ -130,6 +148,7 @@ int SLAVE(int fd, char* ip){
                 file.close();
             }
             else{
+                // telling the client the chosen user is not exist
                 strcpy(buf, ("<User "+receiver+" does not exist.>").c_str());
                 if(write(fd, buf, cc) < 0){
                     perror("write");
@@ -142,6 +161,7 @@ int SLAVE(int fd, char* ip){
             for(int j=0;j<userList.size();j++){
                 if(userList[j]==username){
                     for(int k=0;k<onlineList.size();k++){
+                        // set the user into off-line
                         if(onlineList[k]==username){
                             onlineList.erase(onlineList.begin()+k);
                             rmdir(("./user/online/"+username).c_str());
@@ -150,6 +170,7 @@ int SLAVE(int fd, char* ip){
                     }
                 }
                 else{
+                    // broadcast for off-line
                     fstream file("./user/"+userList[j]+"/offline_"+username, ios::out);
                     if(!file){
                         perror("file");
@@ -161,11 +182,13 @@ int SLAVE(int fd, char* ip){
             }
         }
         
+        // showing the message in server program for debbuging
         printf("%s: %s\n", username.c_str(), buf);
         
-        // get message
+        // sending message back to client
         vector<string> filenameList;
 
+        // getting all the message others users send to this client
         if ((dir = opendir (("./user/"+username+"/").c_str())) != NULL) {
             while ((ent = readdir(dir)) != NULL) {
                 if(string(ent->d_name)!="." && string(ent->d_name)!=".."){
@@ -179,16 +202,20 @@ int SLAVE(int fd, char* ip){
             exit(1);
         }
         for(int f=0;f<filenameList.size();f++){
+            // open the file and send back the message to this client
             fstream file("./user/"+username+"/"+filenameList[f], ios::in);
             string message;
             getline(file, message);
             
+            // the other off-line message
             if(filenameList[f].substr(0, filenameList[f].find_first_of("_"))=="offline"){
                 strcpy(buf, ("<User "+message+" is off-line, IP address: "+ip+".>").c_str());
             }
+            // the other on-line message
             else if(filenameList[f].substr(0, filenameList[f].find_first_of("_"))=="online"){
                 strcpy(buf, ("<User "+message+" is on-line, IP address: "+ip+".>").c_str());
             }
+            // the other send to this client message
             else{
                 string sender = filenameList[f].substr(0, filenameList[f].find_first_of("_"));
                 string sendtime = filenameList[f].substr(filenameList[f].find_first_of("_")+1, filenameList[f].find_first_of(".")-2);
@@ -199,12 +226,15 @@ int SLAVE(int fd, char* ip){
                 
             }
 
+            // sending the message successfully and remove this message
             if(write(fd, buf, cc) < 0){
                 perror("write");
             }
-            remove(("./user/"+username+"/"+filenameList[f]).c_str());
+            else{
+                remove(("./user/"+username+"/"+filenameList[f]).c_str());
+            }
         }
-        // End of sending
+        // End of sending, telling the client stop to receive the message
         strcpy(buf, "end");
         if(write(fd, buf, cc) < 0){
             perror("write");
@@ -214,12 +244,14 @@ int SLAVE(int fd, char* ip){
     return cc;
 }
 
+// reaper function to handle the signal
 void reaper(int sig){
     int status;
     while(wait3(&status, WNOHANG, (struct rusage *)0) < 0);
 }
 
 int main(){
+    // bind, listen the socket for server
     struct sockaddr_in srv;
     struct sockaddr_in cli;
 
@@ -239,7 +271,8 @@ int main(){
         perror("listen");
         exit(1);
     }
-
+    
+    // reset all the user file when the program start
     system("rm -r ./user");
     mkdir("./user/", 0777);
     mkdir("./user/online/", 0777);
@@ -251,6 +284,7 @@ int main(){
             perror("accept");
             exit(1);
         }
+        // fork a new process for a new client coming
         switch (fork()){
             case 0:
                 close(msock);
