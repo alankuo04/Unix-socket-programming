@@ -247,7 +247,7 @@ int SLAVE(int fd, char* ip){
 // reaper function to handle the signal
 void reaper(int sig){
     int status;
-    while(wait3(&status, WNOHANG, (struct rusage *)0) < 0);
+    while(wait3(&status, WNOHANG, (struct rusage *)0) > 0);
 }
 
 int main(){
