@@ -87,6 +87,7 @@ class serverThread extends Thread{
                         }
                         else if(info.equals("money")){
                             game.addMoney(playerName);
+                            System.out.println(game.getPlayerMoney(playerName));
                         }
                     }
                     else{
@@ -94,13 +95,15 @@ class serverThread extends Thread{
                     }
                 }
                 else if(mode.equals("leave")){
+                    message = game.getMessage(place);
                     place = "lobby";
                 }
                 else if(mode.equals("refresh")){
                     message = game.getMessage(place);
                 }
                 else if(mode.equals("end")){
-                    game.setPlayerList(playerName, game.getPlayerMoney(playerName), "online");
+                    game.setPlayerList(playerName, game.getPlayerMoney(playerName), "offline");
+                    outToClient.writeBytes("END"+'\n');
                     inFromClient.close();
                     outToClient.close();
                     socket.close();
@@ -259,6 +262,19 @@ class BlackJackServer{
             return false;
     }
 
+    public int getCardSum(int[] card){
+        int sum = 0;
+        for(int i=0;i<5;i++){
+            if(card[i]>=10){
+                sum += 10;
+            }
+            else{
+                sum += card[i];
+            }
+        }
+        return sum;
+    }
+
     public void getNewCard(String playerName){
         Random rand = new Random();
         int pokerCard = 1+rand.nextInt(12);
@@ -277,7 +293,7 @@ class BlackJackServer{
                     break;
                 }
             }
-            if(card[turn][0]+card[turn][1]+card[turn][2]+card[turn][3]+card[turn][4] > 21 && turn <= playerCount){
+            if(getCardSum(card[turn]) > 21 && turn <= playerCount){
                 nextTurn();
             }
         }
@@ -287,10 +303,10 @@ class BlackJackServer{
         turn++;
         if(turn >= playerCount){
             for(int i=0;i<5;i++){
-                if(card[3][0]+card[3][1]+card[3][2]+card[3][3]+card[3][4] < 17){
+                if(getCardSum(card[3]) < 17){
                     getNewCard("host");
                 }
-                else if(card[3][0]+card[3][1]+card[3][2]+card[3][3]+card[3][4] > 21){
+                else if(getCardSum(card[3]) > 21){
                     break;
                 }
             }
@@ -298,10 +314,7 @@ class BlackJackServer{
             int maxValue = 0;
             int[] cardSum = new int[4];
             for(int i=0;i<MAX_PLAYER+1;i++){
-                cardSum[i]=0;
-                for(int j=0;j<5;j++){
-                    cardSum[i]+=card[i][j];
-                }
+                cardSum[i]=getCardSum(card[i]);
                 if(cardSum[i]==0){
                     continue;
                 }
@@ -311,10 +324,31 @@ class BlackJackServer{
                     winner = i;
                 }
             }
-            if(winner == 3)
+            if(winner == 3){
                 message = "The winner is host.";
-            else
+                for(int i=0;i<playerList.size();i++){
+                    for(int j=0;j<3;j++){
+                        if(playerList.get(i).split(",")[0].equals(playing[j])){
+                            setPlayerList(playing[j], String.valueOf(Integer.parseInt(getPlayerMoney(playing[j]))-money[j]), getPlayerOnline(playing[j]));
+                        }
+                    }
+                }
+            }
+            else{
                 message = "The winner is "+playing[winner];
+            
+                for(int i=0;i<playerList.size();i++){
+                    for(int j=0;j<playerCount;j++){
+                        if(j == winner && playerList.get(i).split(",")[0].equals(playing[j])){
+                            setPlayerList(playing[j], String.valueOf(Integer.parseInt(getPlayerMoney(playing[j]))+2*money[j]), getPlayerOnline(playing[j]));
+                        }
+                        else if(playerList.get(i).split(",")[0].equals(playing[j])){
+                            setPlayerList(playing[j], String.valueOf(Integer.parseInt(getPlayerMoney(playing[j]))-money[j]), getPlayerOnline(playing[j]));
+                        }
+                    }
+                }
+            }
+            
             startCount = 0;
             playerCount = 0;
             turn = 0;

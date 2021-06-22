@@ -32,11 +32,14 @@ public class Client {
             client.inFromUser = new BufferedReader((new InputStreamReader(System.in)));
             client.guiInitialize();
 
-            // getting data until "end" token
+            // getting data until "END" token
             while(true){
                 
                 //outToServer.writeBytes(buffer +" 1 "+ '\n');
                 buffer = client.inFromServer.readLine();
+                if(buffer.equals("END")){
+                    break;
+                }
                 System.out.println(buffer);
                 String place = buffer.split("/")[0];
                 String message = buffer.split("/")[1];
@@ -172,8 +175,11 @@ public class Client {
                 client.text.setText(message);
                 
             }
-            /*System.out.println("Client end.");
-            clientSocket.close();*/
+            System.out.println("Client end.");
+            client.clientSocket.close();
+            client.outToServer.close();
+            client.inFromServer.close();
+            
         }
         catch(Exception e){
             e.printStackTrace();
@@ -237,6 +243,17 @@ public class Client {
         logout.setBounds(330, 30, 100, 20);
         logout.setVisible(false);
         lobby.add(logout);
+        logout.addActionListener(new ActionListener(){
+            public void actionPerformed(ActionEvent e) {
+                try{
+                    System.out.println("logout");
+                    outToServer.writeBytes("end 1"+ '\n');
+                }
+                catch(Exception ee){
+                    ee.printStackTrace();
+                }
+            }
+        });
         
         text = new JLabel("Message: ");
         text.setBounds(10, 30, 300, 20);
@@ -353,7 +370,7 @@ public class Client {
             public void actionPerformed(ActionEvent e) {
                 try{
                     System.out.println("addMoney");
-                    outToServer.writeBytes("play nomore"+ '\n');
+                    outToServer.writeBytes("play money"+ '\n');
                 }
                 catch(Exception ee){
                     ee.printStackTrace();
