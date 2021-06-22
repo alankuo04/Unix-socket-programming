@@ -40,10 +40,13 @@ public class Client {
                 if(buffer.equals("END")){
                     break;
                 }
+                // get the message from server
                 System.out.println(buffer);
                 String place = buffer.split("/")[0];
                 String message = buffer.split("/")[1];
                 String data = buffer.split("/")[2];
+                
+                // set the gui 
                 if(place.equals("lobby")){
                     client.lobby.setVisible(true);
                     client.room.setVisible(false);
@@ -162,6 +165,7 @@ public class Client {
                         client.T5.setText(data.substring(19, 20));
                     }
                 }
+                // available login username
                 if(message.equals("login successful")){
                     // set the player name and change the gui into next mode
                     client.loginUserName.setVisible(false);
@@ -175,6 +179,7 @@ public class Client {
                 client.text.setText(message);
                 
             }
+            // client close the socket
             System.out.println("Client end.");
             client.clientSocket.close();
             client.outToServer.close();
@@ -186,6 +191,7 @@ public class Client {
         }
     }
 
+    // initializing the gui
     void guiInitialize(){
         lobby = new JFrame();
         room = new JFrame();
@@ -198,6 +204,7 @@ public class Client {
         loginSign.setBounds(10, 5, 300, 20);
         lobby.add(loginSign);
 
+        // get the input for username
         loginUserName = new JTextArea();
         loginUserName.setBounds(130, 5, 200, 20);
         lobby.add(loginUserName);
@@ -259,7 +266,8 @@ public class Client {
         text.setBounds(10, 30, 300, 20);
         lobby.add(text);
         room.add(text);
-
+        
+        // refresh button to get new message from server
         refresh = new JButton("Update");
         refresh.setBounds(10, 60, 100, 20);
         refresh.setVisible(true);
@@ -276,12 +284,14 @@ public class Client {
             }
         });
 
+        // set the player list
         Vector<String> columns = new Vector<String>(Arrays.asList("User Name", "Money", "Online"));
         onlineList = new JTable(getPlayerList(), columns);
         scrollPane = new JScrollPane(onlineList);
         scrollPane.setBounds(10, 80, 430, 250);
         lobby.add(scrollPane);
 
+        // refresh button in the playing room
         refresh_room = new JButton("Update");
         refresh_room.setBounds(10, 80, 100, 20);
         refresh_room.setVisible(true);
@@ -298,6 +308,7 @@ public class Client {
             }
         });
 
+        // start button to start the game
         start = new JButton("start");
         start.setBounds(10, 60, 80, 20);
         start.setVisible(true);
@@ -314,6 +325,7 @@ public class Client {
             }
         });
 
+        // leave button to leave the room
         leave = new JButton("leave");
         leave.setBounds(350, 60, 80, 20);
         leave.setVisible(true);
@@ -330,6 +342,7 @@ public class Client {
             }
         });
 
+        // get button to get new card
         get = new JButton("get");
         get.setBounds(90, 60, 80, 20);
         get.setVisible(true);
@@ -346,6 +359,7 @@ public class Client {
             }
         });
 
+        // skip your turn to next player
         skip = new JButton("skip");
         skip.setBounds(170, 60, 80, 20);
         skip.setVisible(true);
@@ -362,6 +376,7 @@ public class Client {
             }
         });
 
+        // add more money to this game
         addMoney = new JButton("addMoney");
         addMoney.setBounds(250, 60, 100, 20);
         addMoney.setVisible(true);
@@ -377,7 +392,8 @@ public class Client {
                 }
             }
         });
-
+        
+        // card button to show the cards
         D1 = new JButton("J");
         D1.setBounds(180, 500, 60, 90);
         D1.setFont(new Font("Calibri", Font.PLAIN, 10));
@@ -487,6 +503,7 @@ public class Client {
         room.setDefaultCloseOperation(javax.swing.JFrame.EXIT_ON_CLOSE);
     }
 
+    // set the player list from server's message
     public void setPlayerList(String s){
         String[] temp = s.split(" ");
         for(int i=0;i<temp.length;i++){
@@ -502,6 +519,7 @@ public class Client {
         }
     }
 
+    // get the player list
     public Vector<Vector<String>> getPlayerList(){
         return playerList;
     }

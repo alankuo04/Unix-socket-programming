@@ -57,6 +57,7 @@ class serverThread extends Thread{
                 String info = buffer.split(" ")[1];
 
                 if(mode.equals("login")){
+                    // check the player name is useful or not
                     if(game.loginPlayer(info)){
                         message = "login successful";
                         playerName = info;
@@ -65,6 +66,7 @@ class serverThread extends Thread{
                         message = "login failed";
                     }
                 }
+                // join the game room
                 else if(mode.equals("join")){
                     message = "";
                     if(game.join(playerName)){
@@ -74,9 +76,11 @@ class serverThread extends Thread{
                         message = "The room is full";
                     }
                 }
+                // start to play the game
                 else if(mode.equals("start") && place.equals("room")){
                     game.start();
                 }
+                // in the room and client send some message to play the game
                 else if(mode.equals("play") && game.isStart()){
                     if(game.isMyTurn(playerName)){
                         if(info.equals("get")){
@@ -87,20 +91,23 @@ class serverThread extends Thread{
                         }
                         else if(info.equals("money")){
                             game.addMoney(playerName);
-                            System.out.println(game.getPlayerMoney(playerName));
+                            //System.out.println(game.getPlayerMoney(playerName));
                         }
                     }
                     else{
                         message = "Not your turn";
                     }
                 }
+                // leave the room
                 else if(mode.equals("leave")){
                     message = game.getMessage(place);
                     place = "lobby";
                 }
+                // do nothing
                 else if(mode.equals("refresh")){
                     message = game.getMessage(place);
                 }
+                // end the connection
                 else if(mode.equals("end")){
                     game.setPlayerList(playerName, game.getPlayerMoney(playerName), "offline");
                     outToClient.writeBytes("END"+'\n');
@@ -109,7 +116,7 @@ class serverThread extends Thread{
                     socket.close();
                     break;
                 }
-
+                // send different message in different place
                 if(place.equals("lobby"))
                     outToClient.writeBytes(place+"/"+message+"/"+game.showPlayerList()+'\n');
                 else
@@ -123,6 +130,7 @@ class serverThread extends Thread{
     }
 }
 
+// sharing data in different thread
 class BlackJackServer{
     private ArrayList<String> playerList = new ArrayList<String>();
     private int playerCount;
@@ -134,6 +142,7 @@ class BlackJackServer{
     private String message = "";
     int MAX_PLAYER = 3;
 
+    // constructor to reset all the data
     public BlackJackServer(){
         playerCount = 0;
         startCount = 0;
@@ -148,7 +157,7 @@ class BlackJackServer{
         for(int i=0;i<3;i++)
             money[i]=0;
     }
-
+    // check the player can be login or not
     public boolean loginPlayer(String playerName){
         for(int i=0;i<playerList.size();i++){
             if(playerList.get(i).split(",")[0].equals(playerName) && playerList.get(i).split(",")[2].equals("offline")){
@@ -162,11 +171,11 @@ class BlackJackServer{
         playerList.add(playerName+",1000,online");
         return true;
     }
-
+    
     public int getPlayerCount(){
         return playerCount;
     }
-
+    // get the player having money
     public String getPlayerMoney(String playerName){
         for(int i=0;i<playerList.size();i++){
             if(playerList.get(i).split(",")[0].equals(playerName)){
@@ -175,7 +184,7 @@ class BlackJackServer{
         }
         return "";
     }
-
+    // get the player is online or offline
     public String getPlayerOnline(String playerName){
         for(int i=0;i<playerList.size();i++){
             if(playerList.get(i).split(",")[0].equals(playerName)){
@@ -202,7 +211,7 @@ class BlackJackServer{
         }
         return temp;
     }
-
+    // show all the player cards
     public String showPlayerCard(){
         String temp = "";
         for(int i=0;i<4;i++){
@@ -226,6 +235,7 @@ class BlackJackServer{
         return temp;
     }
 
+    // synchronized function to set the startCount in correct number
     public synchronized void start(){
         startCount++;
         for(int i=0;i<4;i++)
@@ -233,6 +243,7 @@ class BlackJackServer{
                 card[i][j]=0;
     }
 
+    // synchronized function to set the playerCount in correct number
     public synchronized boolean join(String playerName){
         message = "";
         if(playerCount >= MAX_PLAYER || isStart()){
@@ -243,25 +254,25 @@ class BlackJackServer{
             return true;
         }
     }
-
+    // get the message
     public String getMessage(String place){
         return message;
     }
-
+    // check the game is start or not
     public boolean isStart(){
         if(playerCount != 0 && startCount >= playerCount)
             return true;
         else
             return false;
     }
-
+    // check now is your turn or not
     public boolean isMyTurn(String playerName){
         if(playing[turn].equals(playerName))
             return true;
         else
             return false;
     }
-
+    // get the sum of the cards
     public int getCardSum(int[] card){
         int sum = 0;
         for(int i=0;i<5;i++){
@@ -274,7 +285,7 @@ class BlackJackServer{
         }
         return sum;
     }
-
+    // get another new card
     public void getNewCard(String playerName){
         Random rand = new Random();
         int pokerCard = 1+rand.nextInt(12);
@@ -298,9 +309,10 @@ class BlackJackServer{
             }
         }
     }
-
+    // change to next player turn
     public void nextTurn(){
         turn++;
+        // every player play end, change to the host turn
         if(turn >= playerCount){
             for(int i=0;i<5;i++){
                 if(getCardSum(card[3]) < 17){
@@ -324,6 +336,7 @@ class BlackJackServer{
                     winner = i;
                 }
             }
+            // check who is the winner
             if(winner == 3){
                 message = "The winner is host.";
                 for(int i=0;i<playerList.size();i++){
@@ -348,7 +361,7 @@ class BlackJackServer{
                     }
                 }
             }
-            
+            // reset the player counting in room
             startCount = 0;
             playerCount = 0;
             turn = 0;
@@ -362,7 +375,7 @@ class BlackJackServer{
             }
         }
     }
-
+    // add money in this game
     public void addMoney(String playerName){
         money[turn] += 50;
     }
